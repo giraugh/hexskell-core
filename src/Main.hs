@@ -3,6 +3,8 @@ module Main where
 import Hex
 import Bot
 
+import Data.Maybe
+
 -- board is always 11x11
 -- a hex is adjacent to cartesian, +x,-y and -x,+y. Diag not possible when sign of change in x and change in y are the same
 -- two players, red and blue. Red goes first then turn alternates (i.e red on even turn numbers, blue on odd turn numbers)
@@ -44,6 +46,13 @@ nextBoardState (redBot, blueBot) currentState@(Ongoing (red, blue) previous) =
     blue' = if not isRedTurn then (transposeCoordinate (blueBot (botArgument Blue currentState)) : blue) else blue
     newState = (red', blue')
 
+
+-- JUST FOR REPL FOR NOW
+state = Initial
+next = nextGameState (phBot, phBot)
+d5 = fromJust $ getBoardState $ (!! 5) $ iterate next state
+d10 = fromJust $ getBoardState $ (!! 10) $ iterate next state
+--
 
 main = do
   putStrLn "compiled"

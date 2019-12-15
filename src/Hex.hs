@@ -1,8 +1,9 @@
 module Hex where
 
 import Data.Tuple (swap)
+import Data.List
 
-data Allegiance = Red | Blue deriving (Enum, Show, Eq)
+data Allegiance = Neutral | Red | Blue deriving (Enum, Show, Eq)
 type Coordinate = (Integer, Integer)
 type Coordinates = [Coordinate]
 type Checker = Coordinate
@@ -37,7 +38,39 @@ isAdjacent (x1, y1) (x2, y2) =
 getAdjacent :: Coordinate -> Coordinates
 getAdjacent (x, y) = filter validCoordinate $ [(x - 1, y), (x + 1, y), (x, y - 1), (x, y + 1), (x - 1, y + 1), (x + 1, y - 1)]
 
--- Swaps the x and y positions of a list of checkers
+allCheckers :: Coordinates
+allCheckers = [(x, y)|x <- [1..11], y <-[1..11]]
+
+positionHasChecker :: BoardState -> Coordinate -> Bool
+positionHasChecker (red, blue) checker = checker `elem` (red ++ blue)
+
+isAllegiance :: BoardState -> Allegiance -> Coordinate -> Bool
+isAllegiance (red, blue) allegiance checker
+  = case allegiance of
+      Neutral -> not (positionHasChecker (red, blue) checker)
+      Red     -> checker `elem` red
+      Blue    -> checker `elem` blue
+
+allConnected :: BoardState -> Allegiance -> Coordinate -> Coordinates
+allConnected bs allegiance checker = allConnected' bs allegiance [checker] checker
+allConnected' :: BoardState -> Allegiance -> Coordinates -> Coordinate -> Coordinates
+allConnected' (red, blue) allegiance closed checker = (open') ++ concatMap (allConnected' (red, blue) allegiance closed') open'
+  where
+    adjacent = getAdjacent checker
+    connected = filter (isAllegiance (red, blue) allegiance) $ adjacent
+    open' = filter (\checker -> checker `notElem` closed) $ connected
+    closed' = (closed ++ open')
+
+-- returns whether board state has won for given allegiance
+-- requires correctly transposed coords for blue
+allegianceHasWon :: BoardState -> Allegiance -> Bool
+allegianceHasWon bs allegiance =
+  not . null $
+  filter (\checker -> fst checker == 11) $ -- do they reach the other side?
+  concatMap (allConnected bs allegiance) $ -- All of their indirectly connected hexs
+  filter (isAllegiance bs allegiance) $ -- that are the right allegiance,
+  [(1,y)| y <- [1..11]] -- Starting column coords
+
 transposeCoordinate :: Coordinate -> Coordinate
 transposeCoordinate = swap
 transposeCoordinates :: Coordinates -> Coordinates
