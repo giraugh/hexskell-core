@@ -11,6 +11,11 @@ type Checkers = [Checker]
 type BoardState = (Checkers, Checkers) -- red, blue
 data GameState = Initial | Ongoing BoardState GameState | Win Allegiance deriving (Show)
 
+-- helpers
+both :: (a -> b) -> (a, a) -> (b, b)
+both f (a,b) = (f a, f b)
+--
+
 -- returns who is currently placing a piece (i.e who's turn it is)
 currentAllegiance :: Int -> Allegiance
 currentAllegiance turnNumber = if even turnNumber then Red else Blue
@@ -62,16 +67,19 @@ allConnected' (red, blue) allegiance closed checker = (open') ++ concatMap (allC
     closed' = (closed ++ open')
 
 -- returns whether board state has won for given allegiance
--- requires correctly transposed coords for blue
 allegianceHasWon :: BoardState -> Allegiance -> Bool
-allegianceHasWon bs allegiance =
+allegianceHasWon boardState allegiance =
   not . null $
   filter (\checker -> fst checker == 11) $ -- do they reach the other side?
   concatMap (allConnected bs allegiance) $ -- All of their indirectly connected hexs
   filter (isAllegiance bs allegiance) $ -- that are the right allegiance,
   [(1,y)| y <- [1..11]] -- Starting column coords
+  where
+    bs = if allegiance == Red then boardState else transposeBoardState boardState
 
 transposeCoordinate :: Coordinate -> Coordinate
 transposeCoordinate = swap
 transposeCoordinates :: Coordinates -> Coordinates
 transposeCoordinates = map transposeCoordinate
+transposeBoardState :: BoardState -> BoardState
+transposeBoardState = both transposeCoordinates
