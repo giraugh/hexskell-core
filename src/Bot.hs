@@ -6,11 +6,6 @@ data BotArgument = None | Argument (Checkers, Checkers) BotArgument -- friendly,
 type Bot = BotArgument -> Checker -- game state -> new piece
 type Bots = (Bot, Bot) --red, blue
 
--- some helpers
-both :: (a -> b) -> (a, a) -> (b, b)
-both f (a,b) = (f a, f b)
---
-
 -- gamestate is transformed recursively such that friendly checkers are passed first and so that board is transposed for blue
 botArgument :: Allegiance -> GameState -> BotArgument
 botArgument allegiance (Initial) = None

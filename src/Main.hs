@@ -31,27 +31,31 @@ nextGameState bots (Initial) =
       newBoardState = (nextBoardState bots (Ongoing ([],[]) Initial))
 
 nextGameState bots currentState@(Ongoing (red, blue) previousState) =
-    Ongoing newBoardState currentState
+    if hasWon
+      then Win (if redHasWon then Red else Blue)
+      else Ongoing (nextBoardState bots currentState) currentState
     where
-        newBoardState = (nextBoardState bots currentState)
+        redHasWon = allegianceHasWon (red, blue) Red
+        blueHasWon = allegianceHasWon (red, blue) Blue
+        hasWon = redHasWon || blueHasWon
 
 
 nextBoardState :: Bots -> GameState -> BoardState
 nextBoardState (redBot, blueBot) currentState@(Ongoing (red, blue) previous) =
   newState
   where
-    turnNumber = length red + length blue
-    isRedTurn = currentAllegiance turnNumber == Red
+    isRedTurn = currentAllegiance (red, blue) == Red
     red' = if isRedTurn then (redBot (botArgument Red currentState) : red) else red
     blue' = if not isRedTurn then (transposeCoordinate (blueBot (botArgument Blue currentState)) : blue) else blue
     newState = (red', blue')
 
 
--- JUST FOR REPL FOR NOW
+-- JUST FOR REPL
 state = Initial
 next = nextGameState (phBot, phBot)
 d5 = fromJust $ getBoardState $ (!! 5) $ iterate next state
 d10 = fromJust $ getBoardState $ (!! 10) $ iterate next state
+d50 = fromJust $ getBoardState $ (!! 50) $ iterate next state
 --
 
 main = do

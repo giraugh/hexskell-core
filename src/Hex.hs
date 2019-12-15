@@ -4,7 +4,7 @@ import Data.Tuple (swap)
 import Data.List
 
 data Allegiance = Neutral | Red | Blue deriving (Enum, Show, Eq)
-type Coordinate = (Integer, Integer)
+type Coordinate = (Integer, Integer) 
 type Coordinates = [Coordinate]
 type Checker = Coordinate
 type Checkers = [Checker]
@@ -17,8 +17,11 @@ both f (a,b) = (f a, f b)
 --
 
 -- returns who is currently placing a piece (i.e who's turn it is)
-currentAllegiance :: Int -> Allegiance
-currentAllegiance turnNumber = if even turnNumber then Red else Blue
+currentAllegiance :: BoardState -> Allegiance
+currentAllegiance boardState = if even (turnNumber boardState) then Red else Blue
+
+turnNumber :: BoardState -> Int
+turnNumber (red, blue) = (length red) + (length blue)
 
 getBoardState :: GameState -> Maybe BoardState
 getBoardState (Initial) = Nothing
@@ -56,17 +59,21 @@ isAllegiance (red, blue) allegiance checker
       Red     -> checker `elem` red
       Blue    -> checker `elem` blue
 
-allConnected :: BoardState -> Allegiance -> Coordinate -> Coordinates
-allConnected bs allegiance checker = allConnected' bs allegiance [checker] checker
-allConnected' :: BoardState -> Allegiance -> Coordinates -> Coordinate -> Coordinates
-allConnected' (red, blue) allegiance closed checker = (open') ++ concatMap (allConnected' (red, blue) allegiance closed') open'
-  where
-    adjacent = getAdjacent checker
-    connected = filter (isAllegiance (red, blue) allegiance) $ adjacent
-    open' = filter (\checker -> checker `notElem` closed) $ connected
-    closed' = (closed ++ open')
 
--- returns whether board state has won for given allegiance
+floodFill :: (Coordinate -> Coordinates) -> (Coordinate -> Bool) -> Coordinates -> Coordinates -> Coordinates
+floodFill _ _ _ [] = []
+floodFill next doProgress closed open = open' ++ floodFill next doProgress closed'' open'
+  where
+    adjoining = nub $ concatMap ((filter doProgress) . next) open
+    closed' = closed ++ open
+    open' = adjoining \\ closed'
+    closed'' = closed' ++ adjoining
+
+
+allConnected :: BoardState -> Allegiance -> Coordinate -> Coordinates
+allConnected bs allegiance checker = floodFill getAdjacent (isAllegiance bs allegiance) [] [checker] 
+
+
 allegianceHasWon :: BoardState -> Allegiance -> Bool
 allegianceHasWon boardState allegiance =
   not . null $
