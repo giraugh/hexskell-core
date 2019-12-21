@@ -58,7 +58,7 @@ executable hexskell
   
   -- Other library packages from which modules are imported.
   build-depends:
-    base >=4.10 && <4.11,
+    base >=4.7 && <5,
     containers,
     process,
     regex-compat
