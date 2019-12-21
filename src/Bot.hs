@@ -15,6 +15,11 @@ data BotError = BotError String
 type Bot = BotArgument -> Checker -- game state -> new piece
 type Bots = (Bot, Bot) --red, blue
 
+-- helpers
+meetsAll :: a -> [(a -> Bool)] -> Bool
+meetsAll x predicates = all ($ x) predicates
+--
+
 -- gamestate is transformed recursively such that friendly checkers are passed first and so that board is transposed for blue
 botArgument :: Allegiance -> GameState -> BotArgument
 botArgument allegiance (Initial) = None
@@ -49,11 +54,41 @@ scriptFromTemplate template code =
   )
 
 isValidNewChecker :: BotArgument -> Checker -> Bool
-isValidNewChecker arg@(BotArgument bs@(friendly, enemy) _) checker = all ($ checker) predicates
+isValidNewChecker arg@(BotArgument bs@(friendly, enemy) _) checker = checker `meetsAll` predicates
   where
     predicates = [validCoordinate, isAllegiance bs Neutral]
 
+botCodeIsValid :: String -> Bool
+botCodeIsValid botJS = botJS `meetsAll` predicates
+  where
+    predicates = [not . isInfixOf "require"]    
+
+executeBot :: String -> BotArgument -> IO (Either Checker BotError)
+executeBot script arg@(BotArgument (friendly, enemy) previous) = do
+
+  -- run external process
+  (exitCode, out, err) <- readProcessWithExitCode command arguments script
+
+  -- parse output to a checker
+  let maybeChecker = fromExternalCheckerString out
+
+  -- was there an error / return approp value?
+  return $ case exitCode of
+    ExitFailure _ -> Right (BotError err) -- probably add more detail later and stuff
+    ExitSuccess -> case maybeChecker of
+      Nothing -> Right $ BotError "Bot failed to return a checker"
+      Just checker -> if isValidNewChecker arg checker
+        then Left checker
+        else Right $ BotError $ "Bot returned invalid checker " ++ show checker
+
+  where
+    command = "node"
+    friendlyS = toExternalCheckersString friendly
+    enemyS = toExternalCheckersString enemy
+    arguments = ["", friendlyS, enemyS]
+
 -- requires 'node' in PATH & 'bot-template.js' in cd
+-- still need a detailed error when code is invalid (i.e why is it invalid?)
 runExternalBot :: String -> BotArgument -> IO (Either Checker BotError) --String -> BotArgument -> IO (Maybe Coordinate)
 runExternalBot botJS arg@(BotArgument (friendly, enemy) previous) = do
   -- read template
@@ -62,24 +97,10 @@ runExternalBot botJS arg@(BotArgument (friendly, enemy) previous) = do
   -- sub in program js code
   let fullScript = scriptFromTemplate template botJS
 
-  -- run external process
-  (exitCode, out, err) <- readProcessWithExitCode command arguments template
-
-  -- parse output to a checker
-  let checker = fromExternalCheckerString out
-
-  -- was there an error / return approp value?
-  return (case exitCode of
-    ExitFailure _ -> Right (BotError err) -- probably add more detail later and stuff
-    ExitSuccess -> case checker of
-      Nothing -> Right (BotError "Bot failed to return a checker")
-      Just checker -> if isValidNewChecker arg checker
-        then Left checker
-        else Right (BotError ("Bot returned invalid checker " ++ show checker)))
+  -- is bot valid?
+  if botCodeIsValid fullScript
+    then executeBot fullScript arg
+    else return $ Right $ BotError "Bot code is invalid"
 
   where
-    command = "node"
     templatePath = "./bot-template.js"
-    friendlyS = toExternalCheckersString friendly
-    enemyS = toExternalCheckersString enemy
-    arguments = ["", friendlyS, enemyS]
