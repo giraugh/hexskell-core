@@ -9,12 +9,22 @@ type Coordinates = [Coordinate]
 type Checker = Coordinate
 type Checkers = [Checker]
 type BoardState = (Checkers, Checkers) -- red, blue
-data GameState = Initial | Ongoing BoardState GameState | Win Allegiance deriving (Show)
+data GameState = Initial | Ongoing | Win Allegiance deriving (Show)
 
 -- helpers
 both :: (a -> b) -> (a, a) -> (b, b)
 both f (a,b) = (f a, f b)
 --
+
+gameIsWon :: BoardState -> Bool
+gameIsWon bs = (allegianceHasWon bs Red || allegianceHasWon bs Blue)
+
+gameState :: BoardState -> GameState
+gameState ([],[]) = Initial
+gameState bs
+  | allegianceHasWon bs Red  = Win Red
+  | allegianceHasWon bs Blue = Win Blue
+  | otherwise                = Ongoing
 
 -- returns who is currently placing a piece (i.e who's turn it is)
 currentAllegiance :: BoardState -> Allegiance
@@ -22,16 +32,6 @@ currentAllegiance boardState = if even (turnNumber boardState) then Red else Blu
 
 turnNumber :: BoardState -> Int
 turnNumber (red, blue) = (length red) + (length blue)
-
-getBoardState :: GameState -> Maybe BoardState
-getBoardState (Initial) = Nothing
-getBoardState (Win _) = Nothing
-getBoardState (Ongoing boardState _) = Just boardState
-
-getPreviousState :: GameState -> Maybe GameState
-getPreviousState (Initial) = Nothing
-getPreviousState (Win _) = Nothing
-getPreviousState (Ongoing _ previousState) = Just previousState
 
 validCoordinate :: Coordinate -> Bool
 validCoordinate (x, y) = x >= 1 && y >= 1 && x <= 11 && y <= 11 
