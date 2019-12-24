@@ -31,9 +31,8 @@ nextBoardState (redBot, blueBot) boardState@(red, blue) =
       isRedTurn = currentAllegiance boardState == Red
       red' =  if isRedTurn     then (redBot boardState) : red    else red
       blue' = if not isRedTurn then (blueBot boardState) : blue  else blue
-      newState = (red', blue')
     in
-      newState
+      (red', blue')
   else
     boardState
 

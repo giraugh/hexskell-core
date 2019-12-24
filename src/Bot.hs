@@ -9,7 +9,7 @@ import System.IO
 import System.Exit
 import Text.Regex
 import Text.Read
-import Data.Bifunctor (second, bimap)
+import Data.Bifunctor (second)
 
 data BotError = BotError String
 type Bot = BoardState -> Checker -- board state -> new piece
@@ -19,8 +19,6 @@ type BotArgument = BoardState -- has (friendly, enemy) instead of (red, blue)
 -- helpers
 meetsAll :: a -> [(a -> Bool)] -> Bool
 meetsAll x predicates = all ($ x) predicates
-mapBoth :: (a -> a) -> (b -> b) -> Either a b -> Either a b
-mapBoth = bimap
 mapRight :: (b -> c) -> Either a b -> Either a c
 mapRight = second
 --
@@ -82,10 +80,18 @@ executeBot script argument@(friendly, enemy) = do
     enemyS = toExternalCheckersString enemy
     arguments = ["", friendlyS, enemyS]
 
+toBotArgument :: Allegiance -> BoardState -> BotArgument
+toBotArgument Red (red, blue) = (red, blue)
+toBotArgument Blue (red, blue) = transposeBoardState (blue, red)
+
+fromBotReturn :: Allegiance -> Checker -> Checker
+fromBotReturn Red = id
+fromBotReturn Blue = transposeCoordinate
+
 -- requires 'node' in PATH & 'bot-template.js' in cd
 -- still need a detailed error when code is invalid (i.e why is it invalid?)
 runExternalBot :: String -> Allegiance -> BoardState -> IO (Either BotError Checker) --String -> BotArgument -> IO (Maybe Coordinate)
-runExternalBot botJS allegiance bs@(red, blue) = (do
+runExternalBot botJS allegiance boardState@(red, blue) = do
   -- read template
   template <- readFile templatePath
 
@@ -93,14 +99,12 @@ runExternalBot botJS allegiance bs@(red, blue) = (do
   let fullScript = scriptFromTemplate template botJS
 
   -- swap red and blue and transpose based on allegiance and transpose correclty
-  let arg = if allegiance == Red then (red, blue) else transposeBoardState (blue, red)
+  let arg = toBotArgument allegiance boardState
 
   -- is bot valid?
   if botCodeIsValid fullScript
-    then executeBot fullScript arg
+    then (executeBot fullScript arg) >>= (return . mapRight (fromBotReturn allegiance))
     else return $ Left $ BotError "Bot code is invalid"
-  
-  ) >>= (return . mapRight (if allegiance == Red then id else transposeCoordinate)) -- transpose back if blue
 
   where
     templatePath = "./bot-template.js"
