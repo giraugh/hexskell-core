@@ -11,7 +11,7 @@ import Text.Regex
 import Text.Read
 import Data.Bifunctor (second)
 
-data BotError = BotError String
+data BotError = BotError String deriving (Show)
 type Bot = BoardState -> Checker -- board state -> new piece
 type Bots = (Bot, Bot) --red, blue
 type BotArgument = BoardState -- has (friendly, enemy) instead of (red, blue)
@@ -25,6 +25,9 @@ mapRight = second
 
 botError :: String -> BotError
 botError message = BotError message
+
+getErrorMessage :: BotError -> String
+getErrorMessage (BotError message) = message
 
 phBot :: Bot
 phBot (red, blue) =
@@ -51,10 +54,16 @@ isValidNewChecker boardState@(red, blue) checker = checker `meetsAll` predicates
   where
     predicates = [validCoordinate, isAllegiance boardState Neutral]
 
+botValidityRequirements = [
+  (not . isInfixOf "require", "Bot script must not contain 'require' keyword")]
+
 botCodeIsValid :: String -> Bool
 botCodeIsValid botJS = botJS `meetsAll` predicates
   where
-    predicates = [not . isInfixOf "require"]    
+    predicates = map fst botValidityRequirements
+
+botCodeValidityErrors :: String -> [BotError]
+botCodeValidityErrors botJS = [ botError label | (pred, label) <- botValidityRequirements, not $ pred botJS ]
 
 executeBot :: String -> BotArgument -> IO (Either BotError Checker)
 executeBot script argument@(friendly, enemy) = do
@@ -104,7 +113,7 @@ runExternalBot botJS allegiance boardState@(red, blue) = do
   -- is bot valid?
   if botCodeIsValid fullScript
     then (executeBot fullScript arg) >>= (return . mapRight (fromBotReturn allegiance))
-    else return $ Left $ BotError "Bot code is invalid"
+    else return $ Left $ BotError $ "Bot code is invalid: " ++ (foldr (++) "" $ intersperse ", " $ map getErrorMessage $ botCodeValidityErrors fullScript)
 
   where
     templatePath = "./bot-template.js"
