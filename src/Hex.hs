@@ -1,7 +1,7 @@
 module Hex where
 
 import Data.Tuple (swap)
-import Data.List
+import Data.List ((\\), nub)
 
 data Allegiance = Neutral | Red | Blue deriving (Enum, Show, Eq)
 type Coordinate = (Integer, Integer) 

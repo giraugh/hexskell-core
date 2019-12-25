@@ -3,8 +3,6 @@ module Main where
 import Hex
 import Bot
 
-import Data.Maybe
-
 
 -- board is always 11x11
 -- a hex is adjacent to cartesian, +x,-y and -x,+y. Diag not possible when sign of change in x and change in y are the same

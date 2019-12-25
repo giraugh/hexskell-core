@@ -2,13 +2,11 @@ module Bot where
 
 import Hex
 
-import Data.List
-import Data.Maybe
-import System.Process
-import System.IO
-import System.Exit
+import Data.List (intersperse, isInfixOf)
+import System.Process (readProcessWithExitCode)
+import System.Exit (ExitCode(ExitSuccess, ExitFailure))
 import Text.Regex (subRegex, mkRegexWithOpts)
-import Text.Read
+import Text.Read (readMaybe)
 import Data.Bifunctor (second)
 
 data BotError = BotError String deriving (Show)
