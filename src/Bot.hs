@@ -7,7 +7,7 @@ import Data.Maybe
 import System.Process
 import System.IO
 import System.Exit
-import Text.Regex
+import Text.Regex (subRegex, mkRegexWithOpts)
 import Text.Read
 import Data.Bifunctor (second)
 
@@ -44,7 +44,7 @@ fromExternalCheckerString str = readMaybe ("(" ++ str ++ ")") :: Maybe Checker
 scriptFromTemplate :: String -> String -> String
 scriptFromTemplate template code =
   (subRegex
-    (mkRegex "\\/\\*\\s*BOT-START\\s*\\*\\/([\\s\\S]*)\\/\\*\\s*BOT-END\\s*\\*\\/")
+    (mkRegexWithOpts "\\/\\* BOT-START \\*\\/.*\\/\\* BOT-END \\*\\/" False True)
     template
     code
   )
