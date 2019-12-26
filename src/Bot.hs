@@ -1,6 +1,7 @@
 module Bot where
 
 import Hex
+import Error
 
 import Data.List (intersperse, isInfixOf)
 import System.Process (readProcessWithExitCode)
@@ -9,7 +10,6 @@ import Text.Regex (subRegex, mkRegexWithOpts)
 import Text.Read (readMaybe)
 import Data.Bifunctor (second)
 
-data BotError = BotError String deriving (Show)
 type Bot = BoardState -> Checker -- board state -> new piece
 type Bots = (Bot, Bot) --red, blue
 type BotArgument = BoardState -- has (friendly, enemy) instead of (red, blue)
@@ -20,12 +20,6 @@ meetsAll x predicates = all ($ x) predicates
 mapRight :: (b -> c) -> Either a b -> Either a c
 mapRight = second
 --
-
-botError :: String -> BotError
-botError message = BotError message
-
-getErrorMessage :: BotError -> String
-getErrorMessage (BotError message) = message
 
 phBot :: Bot
 phBot (red, blue) =
@@ -82,9 +76,6 @@ toBotArgument Blue (red, blue) = transposeBoardState (blue, red)
 fromBotReturn :: Allegiance -> Checker -> Checker
 fromBotReturn Red = id
 fromBotReturn Blue = transposeCoordinate
-
-combineBotErrors :: String -> [BotError] -> BotError
-combineBotErrors label errors = botError $ label ++ (foldr (++) "" $ intersperse ", " $ map getErrorMessage $ errors)
 
 executeBot :: String -> BotArgument -> IO (Either BotError Checker)
 executeBot script argument@(friendly, enemy) = do
