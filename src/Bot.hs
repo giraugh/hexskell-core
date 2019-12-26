@@ -10,8 +10,6 @@ import Text.Regex (subRegex, mkRegexWithOpts)
 import Text.Read (readMaybe)
 import Data.Bifunctor (second)
 
-type Bot = BoardState -> Checker -- board state -> new piece
-type Bots = (Bot, Bot) --red, blue
 type BotArgument = BoardState -- has (friendly, enemy) instead of (red, blue)
 
 -- helpers
@@ -21,11 +19,7 @@ mapRight :: (b -> c) -> Either a b -> Either a c
 mapRight = second
 --
 
-phBot :: Bot
-phBot (red, blue) =
-  head $ filter empty $ allCheckers
-  where
-    empty = (not . positionHasChecker (red, blue))
+phBotCode = "const empty = getAllCheckers(grid).filter(checker => checker.team === 'neutral'); return empty[0]"
 
 toExternalCheckersString :: Checkers -> String
 toExternalCheckersString checkers = concat $ intersperse "|" $ map (\(x, y) -> show x ++ "," ++ show y) checkers
@@ -46,8 +40,8 @@ checkerValidityRequirements bs = [
   (validCoordinate, "Checker must be on the board: from 1,1 to 11,11"),
   (isAllegiance bs Neutral, "Target checker position is already occupied")]
 
-botCodeValidityRequirements :: [(String -> Bool, String)]
-botCodeValidityRequirements = [
+botScriptValidityRequirements :: [(String -> Bool, String)]
+botScriptValidityRequirements = [
   (not . isInfixOf "require", "Bot script must not contain 'require' keyword")]
 
 isValidNewChecker :: BoardState -> Checker -> Bool
@@ -60,13 +54,13 @@ checkerValidityErrors boardState checker = [ botError label | (pred, label) <- p
   where
     predicatePairs = checkerValidityRequirements boardState
 
-botCodeIsValid :: String -> Bool
-botCodeIsValid botJS = botJS `meetsAll` predicates
+botScriptIsValid :: String -> Bool
+botScriptIsValid botJS = botJS `meetsAll` predicates
   where
-    predicates = map fst botCodeValidityRequirements
+    predicates = map fst botScriptValidityRequirements
 
-botCodeValidityErrors :: String -> [BotError]
-botCodeValidityErrors botJS = [ botError label | (pred, label) <- botCodeValidityRequirements, not $ pred botJS ]
+botScriptValidityErrors :: String -> [BotError]
+botScriptValidityErrors botJS = [ botError label | (pred, label) <- botScriptValidityRequirements, not $ pred botJS ]
 
 
 toBotArgument :: Allegiance -> BoardState -> BotArgument
@@ -77,8 +71,8 @@ fromBotReturn :: Allegiance -> Checker -> Checker
 fromBotReturn Red = id
 fromBotReturn Blue = transposeCoordinate
 
-executeBot :: String -> BotArgument -> IO (Either BotError Checker)
-executeBot script argument@(friendly, enemy) = do
+executeBotScript :: String -> BotArgument -> IO (Either BotError Checker)
+executeBotScript script argument@(friendly, enemy) = do
 
   -- run external process
   (exitCode, out, err) <- readProcessWithExitCode command arguments script
@@ -88,12 +82,12 @@ executeBot script argument@(friendly, enemy) = do
 
   -- was there an error / return approp value?
   return $ case exitCode of
-    ExitFailure _ -> Left (BotError err) -- probably add more detail later and stuff
+    ExitFailure _ -> Left (BotError $ "Error executing bot:\n" ++ err)
     ExitSuccess -> case maybeChecker of
       Nothing -> Left $ BotError "Bot failed to return a checker"
       Just checker -> if isValidNewChecker argument checker
         then Right checker
-        else Left $ combineBotErrors "Bot returned invalid checker: " $ checkerValidityErrors argument checker
+        else Left $ combineBotErrors "Bot returned invalid checker:\n" $ checkerValidityErrors argument checker
 
   where
     command = "node"
@@ -101,23 +95,25 @@ executeBot script argument@(friendly, enemy) = do
     enemyS = toExternalCheckersString enemy
     arguments = ["", friendlyS, enemyS]
 
--- requires 'node' in PATH & 'bot-template.js' in cd
--- still need a detailed error when code is invalid (i.e why is it invalid?)
-runExternalBot :: String -> Allegiance -> BoardState -> IO (Either BotError Checker) --String -> BotArgument -> IO (Maybe Coordinate)
-runExternalBot botJS allegiance boardState@(red, blue) = do
+botScriptFromBotCode :: String -> IO String
+botScriptFromBotCode code = do
   -- read template
-  template <- readFile templatePath
+  template <- readFile "./bot-template.js"
 
   -- sub in program js code
-  let fullScript = scriptFromTemplate template botJS
+  let fullScript = scriptFromTemplate template code
 
-  -- swap red and blue and transpose based on allegiance and transpose correclty
+  -- return as IO String
+  return fullScript
+
+-- requires 'node' in PATH & 'bot-template.js' in cd
+runExternalBotScript :: String -> Allegiance -> BoardState -> IO (Either BotError Checker)
+runExternalBotScript script allegiance boardState@(red, blue) = do
+
+  -- swap red and blue and transpose based on allegiance and transpose correctly
   let arg = toBotArgument allegiance boardState
 
   -- is bot valid?
-  if botCodeIsValid fullScript
-    then (executeBot fullScript arg) >>= (return . mapRight (fromBotReturn allegiance))
-    else return $ Left $ combineBotErrors "Bot code is invalid: " $ botCodeValidityErrors fullScript
-
-  where
-    templatePath = "./bot-template.js"
+  if botScriptIsValid script
+    then (executeBotScript script arg) >>= (return . mapRight (fromBotReturn allegiance))
+    else return $ Left $ combineBotErrors "Bot script is invalid:\n" $ botScriptValidityErrors script

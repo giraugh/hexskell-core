@@ -9,9 +9,9 @@ const [
 
 // Create grid (easier for writing bot given imperative stuff idk) (+1 as haskell coords start at 1,1)
 let grid = []
-for (let i = 0; i < 10; i++) {
+for (let i = 0; i < 11; i++) {
   grid[i] = []
-  for (let j = 0; j < 10; j++) {
+  for (let j = 0; j < 11; j++) {
     grid[i][j] = {x: i + 1, y: j + 1, team: 'neutral'}
   }
 }
