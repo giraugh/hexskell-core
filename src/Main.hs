@@ -4,8 +4,9 @@ import Hex
 import Bot
 import Error
 
+import Control.Monad (when)
+
 -- #TODO:
--- > Handle errors from bots e.g returning a previously taken spot, handled by bot? Maybe bot has 3 strikes then out policy?
 -- > Input and output from main
 -- > timelimit bot scripts
 -- > ensure js sandbox
@@ -61,9 +62,12 @@ main = do
   putStr "Get boardstate from turn: "
   turn <- getLine >>= (return . (max 0) . read) :: IO Int
   bs <- stateAt turn
+
   case bs of
-    Right bs -> if gameIsWon bs then putStrLn (
-        if allegianceHasWon bs Red then "Red has won" else "Blue has Won"
-      ) else return ()
+    Right bs -> when (gameIsWon bs) $ do
+      let redHasWon = allegianceHasWon bs Red
+      let message = (if redHasWon then "Red" else "Blue") ++ " has won"
+      putStrLn message
     Left x -> return ()
+
   return bs
