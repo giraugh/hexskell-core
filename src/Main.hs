@@ -11,10 +11,6 @@ import Error
 -- > ensure js sandbox
 -- > Tests
 
---helpers
-clamp mi ma x = max (mi) (min ma x)
---
-
 nextBoardState :: (String, String) -> BoardState -> IO (Either BotError BoardState)  
 nextBoardState (redJS, blueJS) boardState@(red, blue) =
   if not $ gameIsWon boardState
@@ -63,5 +59,11 @@ main = do
   let stateAt x = iterate (>>= next) (return $ Right state) !! x
   
   putStr "Get boardstate from turn: "
-  turn <- getLine >>= (return . pred . read) :: IO Int
-  stateAt turn
+  turn <- getLine >>= (return . (max 0) . read) :: IO Int
+  bs <- stateAt turn
+  case bs of
+    Right bs -> if gameIsWon bs then putStrLn (
+        if allegianceHasWon bs Red then "Red has won" else "Blue has Won"
+      ) else return ()
+    Left x -> return ()
+  return bs
