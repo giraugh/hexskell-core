@@ -4,9 +4,10 @@ import Hex
 import Bot
 
 -- #TODO:
--- > How to handle errors from bots e.g returning a previously taken spot, handled by bot?
--- > Loading bots from javascript
--- > Tidying
+-- > Handle errors from bots e.g returning a previously taken spot, handled by bot? Maybe bot has 3 strikes then out policy?
+-- > Input and output from main
+-- > timelimit bot scripts
+-- > ensure js sandbox
 -- > Tests
 
 nextBoardState :: Bots -> BoardState -> BoardState

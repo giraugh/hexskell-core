@@ -47,21 +47,44 @@ scriptFromTemplate template code =
     code
   )
 
-isValidNewChecker :: BoardState -> Checker -> Bool
-isValidNewChecker boardState@(red, blue) checker = checker `meetsAll` predicates
-  where
-    predicates = [validCoordinate, isAllegiance boardState Neutral]
+checkerValidityRequirements :: BoardState -> [(Checker -> Bool, String)]
+checkerValidityRequirements bs = [
+  (validCoordinate, "Checker must be on the board: from 1,1 to 11,11"),
+  (isAllegiance bs Neutral, "Target checker position is already occupied")]
 
-botValidityRequirements = [
+botCodeValidityRequirements :: [(String -> Bool, String)]
+botCodeValidityRequirements = [
   (not . isInfixOf "require", "Bot script must not contain 'require' keyword")]
+
+isValidNewChecker :: BoardState -> Checker -> Bool
+isValidNewChecker boardState checker = checker `meetsAll` predicates
+  where
+    predicates = map fst $ checkerValidityRequirements boardState
+
+checkerValidityErrors :: BoardState -> Checker -> [BotError]
+checkerValidityErrors boardState checker = [ botError label | (pred, label) <- predicatePairs, not $ pred checker ]
+  where
+    predicatePairs = checkerValidityRequirements boardState
 
 botCodeIsValid :: String -> Bool
 botCodeIsValid botJS = botJS `meetsAll` predicates
   where
-    predicates = map fst botValidityRequirements
+    predicates = map fst botCodeValidityRequirements
 
 botCodeValidityErrors :: String -> [BotError]
-botCodeValidityErrors botJS = [ botError label | (pred, label) <- botValidityRequirements, not $ pred botJS ]
+botCodeValidityErrors botJS = [ botError label | (pred, label) <- botCodeValidityRequirements, not $ pred botJS ]
+
+
+toBotArgument :: Allegiance -> BoardState -> BotArgument
+toBotArgument Red (red, blue) = (red, blue)
+toBotArgument Blue (red, blue) = transposeBoardState (blue, red)
+
+fromBotReturn :: Allegiance -> Checker -> Checker
+fromBotReturn Red = id
+fromBotReturn Blue = transposeCoordinate
+
+combineBotErrors :: String -> [BotError] -> BotError
+combineBotErrors label errors = botError $ label ++ (foldr (++) "" $ intersperse ", " $ map getErrorMessage $ errors)
 
 executeBot :: String -> BotArgument -> IO (Either BotError Checker)
 executeBot script argument@(friendly, enemy) = do
@@ -79,21 +102,13 @@ executeBot script argument@(friendly, enemy) = do
       Nothing -> Left $ BotError "Bot failed to return a checker"
       Just checker -> if isValidNewChecker argument checker
         then Right checker
-        else Left $ BotError $ "Bot returned invalid checker " ++ show checker
+        else Left $ combineBotErrors "Bot returned invalid checker: " $ checkerValidityErrors argument checker
 
   where
     command = "node"
     friendlyS = toExternalCheckersString friendly
     enemyS = toExternalCheckersString enemy
     arguments = ["", friendlyS, enemyS]
-
-toBotArgument :: Allegiance -> BoardState -> BotArgument
-toBotArgument Red (red, blue) = (red, blue)
-toBotArgument Blue (red, blue) = transposeBoardState (blue, red)
-
-fromBotReturn :: Allegiance -> Checker -> Checker
-fromBotReturn Red = id
-fromBotReturn Blue = transposeCoordinate
 
 -- requires 'node' in PATH & 'bot-template.js' in cd
 -- still need a detailed error when code is invalid (i.e why is it invalid?)
@@ -111,7 +126,7 @@ runExternalBot botJS allegiance boardState@(red, blue) = do
   -- is bot valid?
   if botCodeIsValid fullScript
     then (executeBot fullScript arg) >>= (return . mapRight (fromBotReturn allegiance))
-    else return $ Left $ BotError $ "Bot code is invalid: " ++ (foldr (++) "" $ intersperse ", " $ map getErrorMessage $ botCodeValidityErrors fullScript)
+    else return $ Left $ combineBotErrors "Bot code is invalid: " $ botCodeValidityErrors fullScript
 
   where
     templatePath = "./bot-template.js"
