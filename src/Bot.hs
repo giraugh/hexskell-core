@@ -14,8 +14,6 @@ import System.Timeout (timeout)
 
 type BotArgument = BoardState -- has (friendly, enemy) instead of (red, blue)
 
-bot_max_turn_time = 1000000 * 2
-
 -- helpers
 meetsAll :: a -> [(a -> Bool)] -> Bool
 meetsAll x predicates = all ($ x) predicates
@@ -74,27 +72,28 @@ fromBotReturn Red = id
 fromBotReturn Blue = transposeCoordinate
 
 executeBotScript :: String -> BotArgument -> IO (Either BotError Checker)
-executeBotScript script argument@(friendly, enemy) = do
-
-  -- run external process w/ time-limit
-  output <- timeout bot_max_turn_time $ readProcessWithExitCode command arguments script
-
-  return $ maybe (Left $ BotError $ "Bot Execution timed out, " ++ show (bot_max_turn_time `div` 1000000) ++ " seconds max") (Right) output
-    >>= \(exitCode, out, err) -> case exitCode of
-      ExitSuccess   -> Right out
-      ExitFailure _ -> Left (BotError $ "Error executing bot:\n" ++ err)
-    >>= \out -> case fromExternalCheckerString out of
-      Just checker -> Right $ checker
-      Nothing      -> Left  $ BotError "Bot failed to return a checker" 
-    >>= \checker -> if isValidNewChecker argument checker
-      then Right $ checker
-      else Left  $ combineBotErrors "Bot returned invalid checker:\n" $ checkerValidityErrors argument checker
-
-  where
+executeBotScript script argument@(friendly, enemy) =
+  let
+    bot_max_turn_time = 1000000 * 2
+    timeoutErrorMessage = "Bot Execution timed out, " ++ show (bot_max_turn_time `div` 1000000) ++ " seconds max"
     command = "node"
-    friendlyS = toExternalCheckersString friendly
-    enemyS = toExternalCheckersString enemy
-    arguments = ["", friendlyS, enemyS]
+    arguments = (""):(toExternalCheckersString `map` [friendly, enemy])
+  in do
+    -- run external process w/ time-limit
+    output <- timeout bot_max_turn_time $ readProcessWithExitCode command arguments script
+
+    -- check for errors and format output
+    return $ maybe (Left $ BotError $ timeoutErrorMessage) (Right) output
+      >>= \(exitCode, out, err) -> case exitCode of
+        ExitSuccess   -> Right out
+        ExitFailure _ -> Left (BotError $ "Error executing bot:\n" ++ err)
+      >>= \out -> case fromExternalCheckerString out of
+        Just checker -> Right $ checker
+        Nothing      -> Left  $ BotError "Bot failed to return a checker" 
+      >>= \checker -> if isValidNewChecker argument checker
+        then Right $ checker
+        else Left  $ combineBotErrors "Bot returned invalid checker:\n" $ checkerValidityErrors argument checker
+
 
 botScriptFromBotCode :: String -> IO String
 botScriptFromBotCode code = do
