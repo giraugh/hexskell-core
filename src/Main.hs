@@ -70,4 +70,4 @@ main = do
       putStrLn message
     Left x -> return ()
 
-  return bs
+--   return bs
