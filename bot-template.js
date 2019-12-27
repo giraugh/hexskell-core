@@ -46,9 +46,6 @@ const getAllCheckers = (grid) => {
 function bot (grid) {
  /* BOT-START */
 
-  const empty = getAllCheckers(grid).filter(checker => checker.team === 'neutral')
-  return empty[0]
-
  /* BOT-END */
 }
 
