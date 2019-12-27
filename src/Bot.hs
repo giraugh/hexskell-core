@@ -90,17 +90,6 @@ executeBotScript script argument@(friendly, enemy) = do
       then Right $ checker
       else Left  $ combineBotErrors "Bot returned invalid checker:\n" $ checkerValidityErrors argument checker
 
-  -- return $ case output of
-  --   Nothing -> Left $ BotError $ "Bot execution timed out, " ++ show (bot_max_turn_time `div` 1000000) ++ " seconds max"
-  --   Just (exitCode, out, err) ->
-  --     case exitCode of
-  --       ExitFailure _ -> Left (BotError $ "Error executing bot:\n" ++ err)
-  --       ExitSuccess -> case fromExternalCheckerString out of
-  --         Nothing -> Left $ BotError "Bot failed to return a checker"
-  --         Just checker -> if isValidNewChecker argument checker
-  --           then Right checker
-  --           else Left $ combineBotErrors "Bot returned invalid checker:\n" $ checkerValidityErrors argument checker
-
   where
     command = "node"
     friendlyS = toExternalCheckersString friendly
