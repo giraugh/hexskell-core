@@ -6,10 +6,10 @@ import Error
 
 import Control.Monad (when)
 
+phBotCode = "const empty = getAllCheckers(grid).filter(checker => checker.team === 'neutral'); return empty[0]"
+
 -- #TODO:
 -- > Input and output from main
--- > timelimit bot scripts
--- > ensure js sandbox
 -- > Tests
 
 nextBoardState :: (String, String) -> BoardState -> IO (Either BotError BoardState)  

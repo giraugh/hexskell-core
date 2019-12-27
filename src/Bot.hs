@@ -9,8 +9,11 @@ import System.Exit (ExitCode(ExitSuccess, ExitFailure))
 import Text.Regex (subRegex, mkRegexWithOpts)
 import Text.Read (readMaybe)
 import Data.Bifunctor (second)
+import System.Timeout (timeout)
 
 type BotArgument = BoardState -- has (friendly, enemy) instead of (red, blue)
+
+bot_max_turn_time = 1000000 * 2
 
 -- helpers
 meetsAll :: a -> [(a -> Bool)] -> Bool
@@ -18,8 +21,6 @@ meetsAll x predicates = all ($ x) predicates
 mapRight :: (b -> c) -> Either a b -> Either a c
 mapRight = second
 --
-
-phBotCode = "const empty = getAllCheckers(grid).filter(checker => checker.team === 'neutral'); return empty[0]"
 
 toExternalCheckersString :: Checkers -> String
 toExternalCheckersString checkers = concat $ intersperse "|" $ map (\(x, y) -> show x ++ "," ++ show y) checkers
@@ -74,20 +75,19 @@ fromBotReturn Blue = transposeCoordinate
 executeBotScript :: String -> BotArgument -> IO (Either BotError Checker)
 executeBotScript script argument@(friendly, enemy) = do
 
-  -- run external process
-  (exitCode, out, err) <- readProcessWithExitCode command arguments script
+  -- run external process w/ time-limit
+  output <- timeout bot_max_turn_time $ readProcessWithExitCode command arguments script
 
-  -- parse output to a checker
-  let maybeChecker = fromExternalCheckerString out
-
-  -- was there an error / return approp value?
-  return $ case exitCode of
-    ExitFailure _ -> Left (BotError $ "Error executing bot:\n" ++ err)
-    ExitSuccess -> case maybeChecker of
-      Nothing -> Left $ BotError "Bot failed to return a checker"
-      Just checker -> if isValidNewChecker argument checker
-        then Right checker
-        else Left $ combineBotErrors "Bot returned invalid checker:\n" $ checkerValidityErrors argument checker
+  return $ case output of
+    Nothing -> Left $ BotError $ "Bot execution timed out, " ++ show (bot_max_turn_time `div` 1000000) ++ " seconds max"
+    Just (exitCode, out, err) ->
+      case exitCode of
+        ExitFailure _ -> Left (BotError $ "Error executing bot:\n" ++ err)
+        ExitSuccess -> case fromExternalCheckerString out of
+          Nothing -> Left $ BotError "Bot failed to return a checker"
+          Just checker -> if isValidNewChecker argument checker
+            then Right checker
+            else Left $ combineBotErrors "Bot returned invalid checker:\n" $ checkerValidityErrors argument checker
 
   where
     command = "node"
