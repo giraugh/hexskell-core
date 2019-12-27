@@ -12,42 +12,15 @@ import Data.List (nub)
 -- > Input and output from main
 -- > Tests
 
-nextBoardState :: (String, String) -> BoardState -> IO (Either BotError BoardState)  
-nextBoardState (redJS, blueJS) boardState@(red, blue) =
-  if not $ gameIsWon boardState
-    then
-      let
-        turn = currentAllegiance boardState
-        script = if turn == Red then redJS else blueJS
-      in
-        runExternalBotScript script turn boardState
-        >>= return . mapRight (performMove boardState)
-    else
-      return $ Right boardState
+main = do
+  putStrLn "~HEXSKELL~"
+  putStrLn "Using placeholder bots."
 
-nextBoardState' :: (String, String) -> Either (BoardState, BotError) BoardState -> IO (Either (BoardState, BotError) BoardState)  
-nextBoardState' (redJS, blueJS) (Left x) = return $ Left x
-nextBoardState' (redJS, blueJS) (Right (boardState@(red, blue))) =
-  if not $ gameIsWon boardState
-    then
-      let
-        turn = currentAllegiance boardState
-        script = if turn == Red then redJS else blueJS
-      in
-        runExternalBotScript script turn boardState
-        >>= return . mapRight (performMove boardState)
-        >>= return . mapLeft ((,) boardState)
-    else
-      return $ Right boardState
+  hexskell (phBotCode, phBotCode)
 
-performMove :: BoardState -> Checker -> BoardState
-performMove boardState@(red, blue) checker =
-  let
-    isRedTurn = currentAllegiance boardState == Red
-    red' =  if isRedTurn     then checker : red    else red
-    blue' = if not isRedTurn then checker : blue   else blue
-  in
-    (red', blue')
+  where
+    phBotCode = "const empty = getAllCheckers(grid).filter(checker => checker.team === 'neutral'); return empty[0]"
+
 
 -- takes (left, right) bot code strings
 -- returns 
@@ -73,11 +46,32 @@ hexskell bots@(red, blue) = do
     Right final -> (winningAllegiance final, final, Nothing)
 
 
-main = do
-  putStrLn "~HEXSKELL~"
-  putStrLn "Using placeholder bots."
+nextBoardState :: (String, String) -> BoardState -> IO (Either BotError BoardState)  
+nextBoardState (redJS, blueJS) boardState@(red, blue) =
+  if not $ gameIsWon boardState
+    then
+      let
+        turn = currentAllegiance boardState
+        script = if turn == Red then redJS else blueJS
+      in
+        runExternalBotScript script turn boardState
+        >>= return . mapRight (performMove boardState)
+    else
+      return $ Right boardState
 
-  hexskell (phBotCode, phBotCode)
 
-  where
-    phBotCode = "const empty = getAllCheckers(grid).filter(checker => checker.team === 'neutral'); return empty[0]"
+nextBoardState' :: (String, String) -> Either (BoardState, BotError) BoardState -> IO (Either (BoardState, BotError) BoardState)  
+nextBoardState' _ (Left x) = return $ Left x
+nextBoardState' bots (Right (boardState@(red, blue))) =
+  nextBoardState bots boardState
+    >>= return . mapLeft ((,) boardState)
+
+
+performMove :: BoardState -> Checker -> BoardState
+performMove boardState@(red, blue) checker =
+  let
+    isRedTurn = currentAllegiance boardState == Red
+    red' =  if isRedTurn     then checker : red    else red
+    blue' = if not isRedTurn then checker : blue   else blue
+  in
+    (red', blue')
