@@ -19,6 +19,12 @@ both f (a,b) = (f a, f b)
 gameIsWon :: BoardState -> Bool
 gameIsWon bs = (allegianceHasWon bs Red || allegianceHasWon bs Blue)
 
+winningAllegiance :: BoardState -> Allegiance
+winningAllegiance bs
+  | not $ gameIsWon bs = Neutral
+  | allegianceHasWon bs Red = Red
+  | allegianceHasWon bs Blue = Blue
+
 gameState :: BoardState -> GameState
 gameState ([],[]) = Initial
 gameState bs
@@ -29,6 +35,11 @@ gameState bs
 -- returns who is currently placing a piece (i.e who's turn it is)
 currentAllegiance :: BoardState -> Allegiance
 currentAllegiance boardState = if even (turnNumber boardState) then Red else Blue
+
+opposingAllegiance :: Allegiance -> Allegiance
+opposingAllegiance Red = Blue
+opposingAllegiance Blue = Red
+opposingAllegiance _ = Neutral
 
 turnNumber :: BoardState -> Int
 turnNumber (red, blue) = (length red) + (length blue)

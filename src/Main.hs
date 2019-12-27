@@ -5,8 +5,8 @@ import Bot
 import Error
 
 import Control.Monad (when)
-
-phBotCode = "const empty = getAllCheckers(grid).filter(checker => checker.team === 'neutral'); return empty[0]"
+import Data.Either (partitionEithers, fromLeft)
+import Data.List (nub)
 
 -- #TODO:
 -- > Input and output from main
@@ -21,11 +21,11 @@ nextBoardState (redJS, blueJS) boardState@(red, blue) =
         script = if turn == Red then redJS else blueJS
       in
         runExternalBotScript script turn boardState
-        >>= (return . mapRight (performMove boardState))
+        >>= return . mapRight (performMove boardState)
     else
       return $ Right boardState
 
-nextBoardState' :: (String, String) -> Either BotError BoardState -> IO (Either BotError BoardState)  
+nextBoardState' :: (String, String) -> Either (BoardState, BotError) BoardState -> IO (Either (BoardState, BotError) BoardState)  
 nextBoardState' (redJS, blueJS) (Left x) = return $ Left x
 nextBoardState' (redJS, blueJS) (Right (boardState@(red, blue))) =
   if not $ gameIsWon boardState
@@ -35,7 +35,8 @@ nextBoardState' (redJS, blueJS) (Right (boardState@(red, blue))) =
         script = if turn == Red then redJS else blueJS
       in
         runExternalBotScript script turn boardState
-        >>= (return . mapRight (performMove boardState))
+        >>= return . mapRight (performMove boardState)
+        >>= return . mapLeft ((,) boardState)
     else
       return $ Right boardState
 
@@ -48,26 +49,35 @@ performMove boardState@(red, blue) checker =
   in
     (red', blue')
 
+-- takes (left, right) bot code strings
+-- returns 
+--   > End boardstate
+--   > Winning allegiance
+--   > A BotError if there was one (which terminates the game)
+--   > A set of log messages from red and blue (yet to be implemented, ph for now)
+hexskell :: (String, String) -> IO (Allegiance, BoardState, Maybe BotError)
+hexskell bots@(red, blue) = do
+
+  -- Read template and create bot scripts
+  redS <- botScriptFromBotCode red
+  blueS <- botScriptFromBotCode blue
+  
+  -- iterate states until last
+  let scripts = (redS, blueS)
+  let state = ([], [])
+  finalState <- iterate (>>= nextBoardState' scripts) (return $ Right state) !! 130
+
+  -- Return winning / failing state
+  return $ case finalState of
+    Left ((final, BotError msg)) -> (opposingAllegiance . currentAllegiance $ final, final, Just (BotError msg))
+    Right final -> (winningAllegiance final, final, Nothing)
+
 
 main = do
   putStrLn "~HEXSKELL~"
   putStrLn "Using placeholder bots."
 
-  let state = ([], [])
-  phScript <- botScriptFromBotCode phBotCode
-  let scripts = (phScript, phScript)
-  let next = nextBoardState' scripts
-  let stateAt x = iterate (>>= next) (return $ Right state) !! x
-  
-  putStr "Get boardstate from turn: "
-  turn <- getLine >>= (return . (max 0) . read) :: IO Int
-  bs <- stateAt turn
+  hexskell (phBotCode, phBotCode)
 
-  case bs of
-    Right bs -> when (gameIsWon bs) $ do
-      let redHasWon = allegianceHasWon bs Red
-      let message = (if redHasWon then "Red" else "Blue") ++ " has won"
-      putStrLn message
-    Left x -> return ()
-
---   return bs
+  where
+    phBotCode = "const empty = getAllCheckers(grid).filter(checker => checker.team === 'neutral'); return empty[0]"

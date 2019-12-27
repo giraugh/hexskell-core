@@ -9,7 +9,7 @@ import System.Process (readProcessWithExitCode)
 import System.Exit (ExitCode(ExitSuccess, ExitFailure))
 import Text.Regex (subRegex, mkRegexWithOpts)
 import Text.Read (readMaybe)
-import Data.Bifunctor (second)
+import Data.Bifunctor (first, second)
 import System.Timeout (timeout)
 
 type BotArgument = BoardState -- has (friendly, enemy) instead of (red, blue)
@@ -19,6 +19,8 @@ meetsAll :: a -> [(a -> Bool)] -> Bool
 meetsAll x predicates = all ($ x) predicates
 mapRight :: (b -> c) -> Either a b -> Either a c
 mapRight = second
+mapLeft :: (a -> c) -> Either a b -> Either c b
+mapLeft = first
 --
 
 toExternalCheckersString :: Checkers -> String
