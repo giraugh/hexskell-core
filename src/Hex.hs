@@ -84,12 +84,14 @@ floodFill next doProgress closed open = open' ++ floodFill next doProgress close
 allConnected :: BoardState -> Allegiance -> Coordinate -> Coordinates
 allConnected bs allegiance checker = floodFill getAdjacent (isAllegiance bs allegiance) [] [checker] 
 
+allConnected' :: BoardState -> Allegiance -> [Coordinate] -> Coordinates
+allConnected' bs allegiance checkers = floodFill getAdjacent (isAllegiance bs allegiance) [] checkers 
 
 allegianceHasWon :: BoardState -> Allegiance -> Bool
 allegianceHasWon boardState allegiance =
   not . null $
   filter (\checker -> fst checker == 11) $ -- do they reach the other side?
-  concatMap (allConnected bs allegiance) $ -- All of their indirectly connected hexs
+  allConnected' bs allegiance $ -- All of their indirectly connected hexs
   filter (isAllegiance bs allegiance) $ -- that are the right allegiance,
   [(1,y)| y <- [1..11]] -- Starting column coords
   where
