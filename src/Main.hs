@@ -7,20 +7,27 @@ import Error
 import Control.Monad (when)
 import Data.Either (partitionEithers, fromLeft)
 import Data.List (nub)
+import System.Environment (getArgs, getProgName)
+import System.IO (hPutStrLn, hPutStr, stderr, stdout)
+import System.Exit (exitFailure)
 
 -- #TODO:
 -- > Input and output from main
 -- > Tests
 
 main = do
-  putStrLn "~HEXSKELL~"
-  putStrLn "Using placeholder bots."
+  args <- getArgs
+  case args of
+    [redBot, blueBot] -> hexskell (redBot, blueBot) >>= (hPutStr stdout) . show
+    _ -> do
+      name <- getProgName
+      hPutStrLn stderr $ "usage: " ++ name ++ " <string: Red Bot> <string: Blue Bot>"
+      exitFailure
 
-  hexskell (phBotCode, phBotCode)
-
+test = do
+  hexskell (phBotCode, phBotCode) >>= (hPutStr stdout) . show
   where
     phBotCode = "const empty = getAllCheckers(grid).filter(checker => checker.team === 'neutral'); return empty[0]"
-
 
 -- takes (left, right) bot code strings
 -- returns 
