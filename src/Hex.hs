@@ -70,6 +70,14 @@ isAllegiance (red, blue) allegiance checker
       Red     -> checker `elem` red
       Blue    -> checker `elem` blue
 
+performMove :: BoardState -> Checker -> BoardState
+performMove boardState@(red, blue) checker =
+  let
+    isRedTurn = currentAllegiance boardState == Red
+    red' =  if isRedTurn     then checker : red    else red
+    blue' = if not isRedTurn then checker : blue   else blue
+  in
+    (red', blue')
 
 floodFill :: (Coordinate -> Coordinates) -> (Coordinate -> Bool) -> Coordinates -> Coordinates -> Coordinates
 floodFill _ _ _ [] = []

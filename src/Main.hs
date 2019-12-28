@@ -73,13 +73,3 @@ nextBoardState' _ (Left x) = return $ Left x
 nextBoardState' bots (Right (boardState@(red, blue))) =
   nextBoardState bots boardState
     >>= return . mapLeft ((,) boardState)
-
-
-performMove :: BoardState -> Checker -> BoardState
-performMove boardState@(red, blue) checker =
-  let
-    isRedTurn = currentAllegiance boardState == Red
-    red' =  if isRedTurn     then checker : red    else red
-    blue' = if not isRedTurn then checker : blue   else blue
-  in
-    (red', blue')
