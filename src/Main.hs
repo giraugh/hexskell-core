@@ -3,6 +3,7 @@ module Main where
 import Hex
 import Bot
 import Error
+import JSON
 
 import Control.Monad (when)
 import Data.Either (partitionEithers, fromLeft)
@@ -12,7 +13,6 @@ import System.IO (hPutStrLn, hPutStr, stderr, stdout)
 import System.Exit (exitFailure)
 
 -- #TODO:
--- > Input and output from main
 -- > Tests
 
 main = do
@@ -24,8 +24,9 @@ main = do
       hPutStrLn stderr $ "usage: " ++ name ++ " <string: Red Bot> <string: Blue Bot>"
       exitFailure
 
+
 test = do
-  hexskell (phBotCode, phBotCode) >>= (hPutStr stdout) . show
+  hexskell (phBotCode, phBotCode) >>= (hPutStr stdout) . formatOutputAsJSON
   where
     phBotCode = "const empty = getAllCheckers(grid).filter(checker => checker.team === 'neutral'); return empty[0]"
 
