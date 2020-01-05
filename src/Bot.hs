@@ -13,6 +13,8 @@ import Data.Bifunctor (first, second)
 import System.Timeout (timeout)
 
 type BotArgument = BoardState -- has (friendly, enemy) instead of (red, blue)
+type Log = [String]
+type BotOutput = (Log, Checker)
 
 -- helpers
 meetsAll :: a -> [(a -> Bool)] -> Bool
@@ -21,6 +23,8 @@ mapRight :: (b -> c) -> Either a b -> Either a c
 mapRight = second
 mapLeft :: (a -> c) -> Either a b -> Either c b
 mapLeft = first
+(&&&) :: (a -> b) -> (a -> c) -> a -> (b, c)
+f &&& g = (,) <$> f <*> g
 --
 
 toExternalCheckersString :: Checkers -> String
@@ -73,7 +77,18 @@ fromBotReturn :: Allegiance -> Checker -> Checker
 fromBotReturn Red = id
 fromBotReturn Blue = transposeCoordinate
 
-executeBotScript :: String -> BotArgument -> IO (Either BotError Checker)
+botScriptFromBotCode :: String -> IO String
+botScriptFromBotCode code = do
+  -- read template
+  template <- readFile "./bot-template.js"
+
+  -- sub in program js code
+  let fullScript = scriptFromTemplate template code
+
+  -- return as IO String
+  return fullScript
+
+executeBotScript :: String -> BotArgument -> IO (Either BotError BotOutput)
 executeBotScript script argument@(friendly, enemy) =
   let
     bot_max_turn_time = 1000000 * 2
@@ -87,29 +102,18 @@ executeBotScript script argument@(friendly, enemy) =
     -- check for errors and format output
     return $ maybe (Left $ BotError $ timeoutErrorMessage) (Right) output
       >>= \(exitCode, out, err) -> case exitCode of
-        ExitSuccess   -> Right out
+        ExitSuccess   -> Right $ init &&& last $ lines $ out
         ExitFailure _ -> Left (BotError $ "Error executing bot:\n" ++ err)
-      >>= \out -> case fromExternalCheckerString out of
-        Just checker -> Right $ checker
+      >>= \(log, out) -> case fromExternalCheckerString out of
+        Just checker -> Right $ (log, checker)
         Nothing      -> Left  $ BotError "Bot failed to return a checker" 
-      >>= \checker -> if isValidNewChecker argument checker
-        then Right $ checker
+      >>= \(log, checker) -> if isValidNewChecker argument checker
+        then Right $ (log, checker)
         else Left  $ combineBotErrors "Bot returned invalid checker:\n" $ checkerValidityErrors argument checker
 
 
-botScriptFromBotCode :: String -> IO String
-botScriptFromBotCode code = do
-  -- read template
-  template <- readFile "./bot-template.js"
-
-  -- sub in program js code
-  let fullScript = scriptFromTemplate template code
-
-  -- return as IO String
-  return fullScript
-
 -- requires 'node' in PATH & 'bot-template.js' in cd
-runExternalBotScript :: String -> Allegiance -> BoardState -> IO (Either BotError Checker)
+runExternalBotScript :: String -> Allegiance -> BoardState -> IO (Either BotError BotOutput)
 runExternalBotScript script allegiance boardState@(red, blue) = do
 
   -- swap red and blue and transpose based on allegiance and transpose correctly
@@ -117,5 +121,5 @@ runExternalBotScript script allegiance boardState@(red, blue) = do
 
   -- is bot valid?
   if botScriptIsValid script
-    then (executeBotScript script arg) >>= (return . mapRight (fromBotReturn allegiance))
+    then (executeBotScript script arg) >>= (return . mapRight (fmap $ fromBotReturn allegiance))
     else return $ Left $ combineBotErrors "Bot script is invalid:\n" $ botScriptValidityErrors script

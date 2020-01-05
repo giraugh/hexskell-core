@@ -4,10 +4,8 @@ import Hex
 import Bot
 import Error
 import JSON
+import Turn
 
-import Control.Monad (when)
-import Data.Either (partitionEithers, fromLeft)
-import Data.List (nub)
 import System.Environment (getArgs, getProgName)
 import System.IO (hPutStrLn, hPutStr, stderr, stdout)
 import System.Exit (exitFailure)
@@ -35,41 +33,20 @@ test = do
 --   > End boardstate
 --   > Winning allegiance
 --   > A BotError if there was one (which terminates the game)
---   > A set of log messages from red and blue (yet to be implemented, ph for now)
-hexskell :: (String, String) -> IO (Allegiance, BoardState, Maybe BotError)
+--   > A list of log messages for red and blue for each turn
+hexskell :: (String, String) -> IO (Allegiance, BoardState, Maybe BotError, LogRB)
 hexskell bots@(red, blue) = do
 
   -- Read template and create bot scripts
   redS <- botScriptFromBotCode red
   blueS <- botScriptFromBotCode blue
-  
+
   -- iterate states until last
   let scripts = (redS, blueS)
-  let state = ([], [])
-  finalState <- iterate (>>= nextBoardState' scripts) (return $ Right state) !! 130
+  let state = TurnState ([], []) ([], [])
+  finalState <- iterate (>>= nextTurnState' scripts) (return $ Right state) !! 130
 
   -- Return winning / failing state
   return $ case finalState of
-    Left ((final, BotError msg)) -> (opposingAllegiance . currentAllegiance $ final, final, Just (BotError msg))
-    Right final -> (winningAllegiance final, final, Nothing)
-
-
-nextBoardState :: (String, String) -> BoardState -> IO (Either BotError BoardState)  
-nextBoardState (redJS, blueJS) boardState@(red, blue) =
-  if not $ gameIsWon boardState
-    then
-      let
-        turn = currentAllegiance boardState
-        script = if turn == Red then redJS else blueJS
-      in
-        runExternalBotScript script turn boardState
-        >>= return . mapRight (performMove boardState)
-    else
-      return $ Right boardState
-
-
-nextBoardState' :: (String, String) -> Either (BoardState, BotError) BoardState -> IO (Either (BoardState, BotError) BoardState)  
-nextBoardState' _ (Left x) = return $ Left x
-nextBoardState' bots (Right (boardState@(red, blue))) =
-  nextBoardState bots boardState
-    >>= return . mapLeft ((,) boardState)
+    Left ((TurnState final logs, BotError msg)) -> (opposingAllegiance . currentAllegiance $ final, final, Just (BotError msg), logs)
+    Right (TurnState final logs) -> (winningAllegiance final, final, Nothing, logs)
