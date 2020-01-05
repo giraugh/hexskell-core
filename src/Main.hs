@@ -16,7 +16,7 @@ import System.Exit (exitFailure)
 main = do
   args <- getArgs
   case args of
-    [redBot, blueBot] -> hexskell (redBot, blueBot) >>= (hPutStr stdout) . show
+    [redBot, blueBot] -> hexskell (redBot, blueBot) >>= (hPutStr stdout) . formatOutputAsJSON
     _ -> do
       name <- getProgName
       hPutStrLn stderr $ "usage: " ++ name ++ " <string: Red Bot> <string: Blue Bot>"
