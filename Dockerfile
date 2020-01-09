@@ -17,4 +17,6 @@ RUN cabal install --only-dependencies -j4
 ADD . /hexskell
 RUN cabal install
 
-ENTRYPOINT ["hexskell"]
+EXPOSE 7000
+
+CMD [ "node", "./docker-server.js" ]
