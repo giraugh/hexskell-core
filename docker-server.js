@@ -3,7 +3,7 @@ const url = require('url')
 const qstring = require('querystring')
 const { exec } = require('child_process')
 
-const PORT = 7000
+const PORT = process.env.PORT || 7000
 const COMMAND = 'hexskell'
 
 const server = http.createServer((req, res) => {
