@@ -29,6 +29,10 @@ const server = http.createServer((req, res) => {
   }
   const {redCode, blueCode} = query
 
+  // Escape quote characters
+  const escapedRedCode = redCode.replace(/(["\\])/g, '\\$1')
+  const escapedBlueCode = blueCode.replace(/(["\\])/g, '\\$1')
+
   // Spawn Process
   if (VERBOSE) { console.log(`Spawning process for game between "${redCode.slice(0, 8)}..." and "${blueCode.slice(0, 8)}..."`) }
   exec(`${COMMAND} "${redCode}" "${blueCode}"`, (err, stdout, stderr) => {
@@ -43,7 +47,7 @@ const server = http.createServer((req, res) => {
     try {
       results = JSON.parse(stdout)
     } catch (err) {
-      writeError(res, 500, 'Error parsing child process JSON', err)
+      writeError(res, 500, `Error parsing child process JSON: "${stdout}"`, err)
       return
     }
 
