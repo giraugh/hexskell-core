@@ -6,25 +6,31 @@ const { exec } = require('child_process')
 const PORT = process.env.PORT || 7000
 const COMMAND = 'hexskell'
 
+const VERBOSE = false
+
 const server = http.createServer((req, res) => {
+  if (VERBOSE) { console.log('Incoming query...') }
   // Parse query
   let query
   try {
     const queryString = url.parse(req.url).query
     query = qstring.parse(queryString)
   } catch (err) {
+    console.error('Error parsing query string', err)
     writeError(res, 500, 'Error parsing query string', err)
     return
   }
 
   // Pull query params
   if (!(query.redCode && query.blueCode)) {
+    console.error('Query must include "redCode" and "blueCode" parameters')
     writeError(res, 400, 'Query must include "redCode" and "blueCode" parameters')
     return
   }
   const {redCode, blueCode} = query
 
   // Spawn Process
+  if (VERBOSE) { console.log(`Spawning process for game between "${redCode.slice(0, 8)}..." and "${blueCode.slice(0, 8)}..."`) }
   exec(`${COMMAND} "${redCode}" "${blueCode}"`, (err, stdout, stderr) => {
     // Was there an error?
     if (err) {
@@ -42,6 +48,7 @@ const server = http.createServer((req, res) => {
     }
 
     // Respond with output
+    if (VERBOSE) { console.log('Game execution complete') }
     res.writeHead(200, { 'Content-Type': 'text/json' })
     res.write(JSON.stringify(results))
     res.end()
@@ -49,7 +56,7 @@ const server = http.createServer((req, res) => {
 })
 
 // Start server
-server.listen(PORT, () => { console.log(`Now listening on ${PORT}`) })
+server.listen(PORT, () => { console.log(`Now listening on ${PORT}!`) })
 
 // Close server gracefully when process ends
 process.on('beforeExit', () => {
