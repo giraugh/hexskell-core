@@ -35,7 +35,7 @@ const server = http.createServer((req, res) => {
 
   // Spawn Process
   if (VERBOSE) { console.log(`Spawning process for game between "${redCode.slice(0, 8)}..." and "${blueCode.slice(0, 8)}..."`) }
-  exec(`${COMMAND} "${redCode}" "${blueCode}"`, (err, stdout, stderr) => {
+  exec(`${COMMAND} "${escapedRedCode}" "${escapedBlueCode}"`, (err, stdout, stderr) => {
     // Was there an error?
     if (err) {
       writeError(res, 500, 'Error spawning hexskell process', err)
