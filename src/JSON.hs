@@ -12,7 +12,7 @@ formatOutputAsJSON (winner, bs, error, logs) = if (null error)
     else createJSON $ [w, e, c, l]
   where
     w = (doubleQuote $ show winner, "winner")
-    e = (doubleQuote $ maybe "" getErrorMessage $ error, "error")
+    e = (doubleQuote $ maybe "" (withoutQuotes . show . getErrorMessage) $ error, "error")
     c = (formatBoardStateAsJSON bs, "checkers")
     l = (formatLogsAsJSON logs, "logs")
 
@@ -36,3 +36,6 @@ createJSON' ((value, label):xs) = doubleQuote label ++ ":" ++ value ++ (if null 
 
 createJSON :: [(String, String)] -> String
 createJSON xs = "{" ++ createJSON' xs ++ "}"
+
+withoutQuotes :: String -> String
+withoutQuotes = init . tail
