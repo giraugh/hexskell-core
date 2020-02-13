@@ -43,14 +43,14 @@ const getAllCheckers = (grid) => {
   return checkers
 }
 
-function bot (grid) {
+function bot (grid, friendlies, enemies) {
  /* BOT-START */
 
  /* BOT-END */
 }
 
 // Get output from Bot
-const {x, y} = bot(grid)
+const {x, y} = bot(grid, friendlies, enemies)
 
 // Output to STDOUT
 process.stdout.write(`${x},${y}`)
