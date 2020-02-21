@@ -8,8 +8,11 @@ const [
 ] = process.argv
 
 // Convert friendly and enemy strings to arrays
-const friendlies = friendliesS.length !== 0 ? friendliesS.split('|').map(unit => unit.split(',').map(num => Number(num))) : []
-const enemies = enemiesS.length !== 0 ? enemiesS.split('|').map(unit => unit.split(',').map(num => Number(num))) : []
+const friendliesArr = friendliesS.length !== 0 ? friendliesS.split('|').map(unit => unit.split(',').map(num => Number(num))) : []
+const enemiesArr = enemiesS.length !== 0 ? enemiesS.split('|').map(unit => unit.split(',').map(num => Number(num))) : []
+
+const friendlies = friendliesArr.map(([x, y]) => ({ x, y }))
+const enemies = enemiesArr.map(([x, y]) => ({ x, y }))
 
 function bot (friendlies, enemies) {
  /* BOT-START */
