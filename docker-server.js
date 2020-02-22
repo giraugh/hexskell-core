@@ -41,8 +41,8 @@ const server = http.createServer((req, res) => {
     let { redCode, blueCode } = data
 
     // Escape the code's quote chars
-    const escapedRedCode = redCode.replace(/(["\\])/g, '\\$1')
-    const escapedBlueCode = blueCode.replace(/(["\\])/g, '\\$1')
+    const escapedRedCode = redCode.replace(/(\\)/g, '\\\\').replace(/'/g, `'\\''`)
+    const escapedBlueCode = blueCode.replace(/(\\)/g, '\\\\').replace(/'/g, `'\\''`)
 
     // Spawn Process
     if (VERBOSE) { console.log(`Spawning process for game between "${redCode.slice(0, 8)}..." and "${blueCode.slice(0, 8)}..."`) }
